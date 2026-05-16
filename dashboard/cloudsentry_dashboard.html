@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudSentry — Intelligent Multicloud Resilience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg-base:    #080C14;
+  --bg-surface: #0D1421;
+  --bg-raised:  #111927;
+  --bg-overlay: #151E2E;
+  --bg-hover:   #1A2438;
+
+  --border-subtle:  rgba(255,255,255,0.04);
+  --border-default: rgba(255,255,255,0.07);
+  --border-strong:  rgba(255,255,255,0.12);
+
+  --text-primary:   #E8EDF5;
+  --text-secondary: #8A95A8;
+  --text-tertiary:  #4E5A6B;
+  --text-inverse:   #080C14;
+
+  --blue:       #3B82F6;
+  --blue-dim:   rgba(59,130,246,0.12);
+  --blue-bd:    rgba(59,130,246,0.25);
+  --green:      #10B981;
+  --green-dim:  rgba(16,185,129,0.10);
+  --green-bd:   rgba(16,185,129,0.22);
+  --amber:      #F59E0B;
+  --amber-dim:  rgba(245,158,11,0.10);
+  --amber-bd:   rgba(245,158,11,0.22);
+  --red:        #EF4444;
+  --red-dim:    rgba(239,68,68,0.10);
+  --red-bd:     rgba(239,68,68,0.25);
+  --purple:     #8B5CF6;
+  --purple-dim: rgba(139,92,246,0.10);
+
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* ── RESET ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { height:100%; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+/* ── LAYOUT ── */
+.shell { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-icon svg { width: 18px; height: 18px; fill: white; }
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.4px;
+}
+
+.brand-tagline {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.2px;
+  padding-left: 42px;
+  margin-top: -2px;
+}
+
+.sidebar-section {
+  padding: 12px 10px 4px;
+}
+
+.sidebar-section-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0 8px;
+  margin-bottom: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  user-select: none;
+  margin-bottom: 1px;
+}
+
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.nav-item.active .nav-icon { opacity: 1; }
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--red);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.env-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-raised);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+}
+
+.env-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: envPulse 2.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes envPulse {
+  0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(16,185,129,0.3); }
+  50% { opacity:0.8; box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+}
+
+.env-dot.red { background: var(--red); animation: envPulseRed 0.8s ease-in-out infinite; }
+@keyframes envPulseRed {
+  0%,100% { opacity:1; } 50% { opacity:0.4; }
+}
+
+.env-text { font-size: 11px; color: var(--text-secondary); }
+.env-text strong { color: var(--text-primary); font-weight: 600; }
+
+/* ── MAIN CONTENT ── */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  height: 52px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-clock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 1px solid;
+  transition: all 0.3s;
+}
+
+.status-pill.healthy {
+  background: var(--green-dim);
+  border-color: var(--green-bd);
+  color: var(--green);
+}
+
+.status-pill.critical {
+  background: var(--red-dim);
+  border-color: var(--red-bd);
+  color: var(--red);
+}
+
+.status-pill.warning {
+  background: var(--amber-dim);
+  border-color: var(--amber-bd);
+  color: var(--amber);
+}
+
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-pill.healthy .pill-dot { animation: envPulse 2s infinite; }
+.status-pill.critical .pill-dot { animation: envPulseRed 0.8s infinite; }
+
+.btn-sm {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+.btn-sm:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* ── PAGE AREA ── */
+.page-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+/* ── PANELS ── */
+.panel { display: none; flex-direction: column; gap: 16px; }
+.panel.active { display: flex; }
+
+/* ── SECTION TITLE ── */
+.section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── METRIC STRIP ── */
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+.metric-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.metric-card:hover { border-color: var(--border-default); }
+
+.metric-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent-color, var(--blue));
+  opacity: 0.4;
+}
+
+.metric-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.metric-sub {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 5px;
+}
+
+.metric-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.metric-delta.up { color: var(--green); }
+.metric-delta.down { color: var(--red); }
+
+/* ── PROVIDER GRID ── */
+.provider-grid {
+  display: grid;
+  grid-template-columns: 1fr 180px 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* ── PROVIDER CARD ── */
+.provider-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+
+.provider-card.ok     { border-color: rgba(16,185,129,0.2); }
+.provider-card.fail   { border-color: rgba(239,68,68,0.3); box-shadow: 0 0 0 1px rgba(239,68,68,0.08); }
+.provider-card.warn   { border-color: rgba(245,158,11,0.2); }
+
+.pc-header {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pc-provider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pc-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.pc-logo.azure { background: #0078D4; color: white; }
+.pc-logo.aws   { background: #232F3E; color: #FF9900; }
+
+.pc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.1px;
+}
+
+.pc-region {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  margin-top: 1px;
+}
+
+.pc-role {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+}
+
+.pc-role.primary   { background: rgba(59,130,246,0.12); color: var(--blue);  border: 1px solid var(--blue-bd); }
+.pc-role.secondary { background: rgba(245,158,11,0.08); color: var(--amber); border: 1px solid var(--amber-bd); }
+.pc-role.active    { background: var(--green-dim);       color: var(--green); border: 1px solid var(--green-bd); }
+
+.pc-body { padding: 16px; }
+
+.pc-health {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.health-orb {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.health-orb.ok   { background: var(--green-dim); border: 1.5px solid var(--green-bd); color: var(--green); }
+.health-orb.fail { background: var(--red-dim);   border: 1.5px solid var(--red-bd);   color: var(--red); animation: orbShake 0.6s ease-in-out; }
+
+@keyframes orbShake {
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-4px)}
+  40%{transform:translateX(4px)}
+  60%{transform:translateX(-2px)}
+  80%{transform:translateX(2px)}
+}
+
+.health-orb.ok::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--green-bd);
+  animation: orbRing 2s ease-in-out infinite;
+}
+
+@keyframes orbRing {
+  0%,100%{ opacity:0.6; transform:scale(1); }
+  50%{ opacity:0; transform:scale(1.2); }
+}
+
+.health-info {}
+
+.health-status {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  transition: color 0.3s;
+}
+
+.health-status.ok   { color: var(--green); }
+.health-status.fail { color: var(--red); }
+
+.health-endpoint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.pc-specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.spec-item {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.spec-key {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 3px;
+}
+
+.spec-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.failure-track {
+  margin-top: 12px;
+}
+
+.ft-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-bottom: 5px;
+}
+
+.ft-bar {
+  height: 4px;
+  background: var(--bg-overlay);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ft-fill {
+  height: 100%;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.6s ease, background 0.3s;
+  background: linear-gradient(90deg, var(--amber), var(--red));
+}
+
+/* ── DNS FLOW CARD ── */
+.dns-flow-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+
+.dns-flow-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  align-self: flex-start;
+}
+
+.flow-node {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  transition: all 0.4s;
+  line-height: 1.5;
+}
+
+.flow-node.live {
+  border-color: var(--blue-bd);
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+
+.flow-node.live-aws {
+  border-color: var(--amber-bd);
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+
+.flow-arrow {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  line-height: 1;
+}
+
+.dns-ttl {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 2px 10px;
+  margin-top: 4px;
+}
+
+.dns-routing {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 4px;
+}
+
+.dns-routing strong {
+  color: var(--blue);
+  font-weight: 600;
+}
+
+/* ── MIDDLE ROW ── */
+.two-col { display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* ── CARD SHELL ── */
+.cs {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.cs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cs-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cs-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cs-meta {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* ── STATE MACHINE ── */
+.sm-nodes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 16px;
+}
+
+.sm-node {
+  flex: 1;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+  text-align: center;
+  transition: all 0.4s;
+  cursor: default;
+}
+
+.sm-node.active {
+  border-color: var(--blue-bd);
+  background: var(--blue-dim);
+}
+
+.sm-node.active-crit {
+  border-color: var(--red-bd);
+  background: var(--red-dim);
+}
+
+.sm-node.active-warn {
+  border-color: var(--amber-bd);
+  background: var(--amber-dim);
+}
+
+.sm-arrow { color: var(--text-tertiary); font-size: 12px; flex-shrink: 0; }
+
+.sm-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  margin: 0 auto 6px;
+  transition: all 0.4s;
+}
+
+.sm-node.active .sm-indicator      { background: var(--blue);  box-shadow: 0 0 8px var(--blue); }
+.sm-node.active-crit .sm-indicator { background: var(--red);   box-shadow: 0 0 8px var(--red); animation: critBlink 0.8s ease-in-out infinite; }
+.sm-node.active-warn .sm-indicator { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+
+@keyframes critBlink {
+  0%,100%{opacity:1} 50%{opacity:0.3}
+}
+
+.sm-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  transition: color 0.4s;
+}
+
+.sm-node.active .sm-label      { color: var(--blue); }
+.sm-node.active-crit .sm-label { color: var(--red); }
+.sm-node.active-warn .sm-label { color: var(--amber); }
+
+/* ── CONTROLS ── */
+.controls-section {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.cfg-pill {
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.cfg-pill:hover:not(.active) { border-color: var(--border-strong); color: var(--text-primary); }
+.cfg-pill.active { background: var(--blue-dim); border-color: var(--blue-bd); color: var(--blue); }
+
+.cfg-detail {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: inherit;
+  opacity: 0.65;
+  margin-top: 2px;
+}
+
+.action-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-btn {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: -0.1px;
+  text-align: center;
+}
+
+.action-btn:hover { transform: translateY(-1px); }
+.action-btn:active { transform: translateY(0); }
+.action-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+.action-btn.primary {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+  grid-column: span 2;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+  background: #DC2626;
+  box-shadow: 0 4px 14px rgba(239,68,68,0.3);
+}
+
+.action-btn.secondary {
+  background: var(--green-dim);
+  border-color: var(--green-bd);
+  color: var(--green);
+}
+
+.action-btn.tertiary {
+  background: var(--bg-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.auto-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--bg-raised);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.auto-toggle-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.toggle {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  background: var(--border-strong);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle.on { background: var(--green); }
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s;
+}
+
+.toggle.on::after { transform: translateX(16px); }
+
+/* ── EVENT LOG ── */
+.event-log {
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.65;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.log-row {
+  display: flex;
+  gap: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.log-row:hover { background: var(--bg-raised); }
+
+.log-ts { color: var(--text-tertiary); flex-shrink: 0; min-width: 75px; }
+.log-lvl { flex-shrink: 0; width: 52px; font-weight: 600; }
+.log-lvl.INFO     { color: var(--blue); }
+.log-lvl.WARNING  { color: var(--amber); }
+.log-lvl.CRITICAL { color: var(--red); font-weight: 700; }
+.log-lvl.DEBUG    { color: var(--text-tertiary); }
+.log-msg { color: var(--text-secondary); word-break: break-word; flex: 1; }
+.log-msg.hi { color: var(--text-primary); font-weight: 500; }
+
+/* ── ALERTS ── */
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+
+.alert-row:hover { background: var(--bg-raised); }
+.alert-row:last-child { border-bottom: none; }
+
+.alert-severity {
+  width: 3px;
+  border-radius: 2px;
+  align-self: stretch;
+  min-height: 36px;
+  flex-shrink: 0;
+}
+
+.sev-crit { background: var(--red); }
+.sev-warn { background: var(--amber); }
+.sev-info { background: var(--blue); }
+.sev-ok   { background: var(--green); }
+
+.alert-body { flex: 1; min-width: 0; }
+.alert-title { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+.alert-detail { font-size: 10.5px; color: var(--text-tertiary); font-family: var(--font-mono); }
+.alert-time { font-size: 10px; color: var(--text-tertiary); font-family: var(--font-mono); flex-shrink: 0; }
+
+.alert-sev-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.asb-crit { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-bd); }
+.asb-warn { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber-bd); }
+.asb-info { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-bd); }
+
+/* ── RESULTS CHART ── */
+.chart-wrap { padding: 16px; height: 320px; position: relative; }
+
+/* ── RESULTS TABLE ── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  padding: 8px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-raised);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  transition: background 0.1s;
+}
+
+.data-table tr:hover td { background: var(--bg-raised); }
+.data-table tr:last-child td { border-bottom: none; }
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tag-a { background: rgba(16,185,129,0.1);  color: var(--green); border: 1px solid var(--green-bd); }
+.tag-b { background: var(--blue-dim);        color: var(--blue);  border: 1px solid var(--blue-bd); }
+.tag-c { background: var(--amber-dim);       color: var(--amber); border: 1px solid var(--amber-bd); }
+
+/* ── UPTIME BAR ── */
+.uptime-bar {
+  display: flex;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.ub-seg {
+  flex: 1;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--green-dim);
+  border: 1px solid var(--green-bd);
+  transition: all 0.2s;
+}
+
+.ub-seg.fail { background: var(--red-dim); border-color: var(--red-bd); }
+.ub-seg.partial { background: var(--amber-dim); border-color: var(--amber-bd); }
+
+/* ── FAILOVER OVERLAY ── */
+#fo-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  border: 2px solid var(--red);
+  border-radius: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+#fo-flash.show {
+  opacity: 1;
+  animation: flashAnim 1.2s ease-in-out 2;
+}
+
+@keyframes flashAnim {
+  0%,100%{opacity:0} 50%{opacity:1}
+}
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  padding: 36px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* ── SLA INDICATORS ── */
+.sla-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.sla-item {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.sla-label { font-size: 9px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+.sla-value { font-family: var(--font-mono); font-size: 16px; font-weight: 500; color: var(--text-primary); }
+.sla-sub   { font-size: 9px; color: var(--text-tertiary); margin-top: 2px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .metric-strip { grid-template-columns: repeat(3, 1fr); }
+  .provider-grid { grid-template-columns: 1fr; }
+  .two-col, .three-col { grid-template-columns: 1fr; }
+  .sidebar { width: 180px; }
+}
+</style>
+</head>
+<body>
+
+<div id="fo-flash"></div>
+
+<div class="shell">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-lockup">
+        <div class="brand-icon">
+          <svg viewBox="0 0 20 20"><path d="M10 2L2 7v6l8 5 8-5V7L10 2zm0 2.5L16 8l-6 3.5L4 8l6-3.5zM3 9.5l6 3.5v5L3 14.5V9.5zm8 8.5v-5l6-3.5v5L11 18z"/></svg>
+        </div>
+        <span class="brand-name">CloudSentry</span>
+      </div>
+      <div class="brand-tagline">Multicloud Resilience Platform</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Monitoring</div>
+      <div class="nav-item active" onclick="showPanel('overview', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 1h6v6H1V1zm0 8h6v6H1V9zm8-8h6v6H9V1zm0 8h6v6H9V9z"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" onclick="showPanel('topology', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a2 2 0 100 4 2 2 0 000-4zM6 8a2 2 0 100 4 2 2 0 000-4zm4 0a2 2 0 100 4 2 2 0 000-4zm-2-4v3m-2 3H4M10 11h2"/></svg>
+        Infrastructure
+      </div>
+      <div class="nav-item" onclick="showPanel('alerts', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a5 5 0 00-5 5c0 2.5-1 4-1 4h12s-1-1.5-1-4a5 5 0 00-5-5zm-1 12a1 1 0 002 0H7z"/></svg>
+        Alerts
+        <span class="nav-badge" id="nav-badge" style="display:none">0</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Operations</div>
+      <div class="nav-item" onclick="showPanel('failover', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v14M1 8h14M3 3l10 10M13 3L3 13"/></svg>
+        Failover Control
+      </div>
+      <div class="nav-item" onclick="showPanel('results', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 12h2V6H1v6zm4 0h2V4H5v8zm4 0h2V8H9v4zm4 0h2V2h-2v10z"/></svg>
+        Analytics
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">System</div>
+      <div class="nav-item" onclick="showPanel('settings', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 1h3l.5 2a5 5 0 011.4.8l2-.5 1.5 2.6-1.5 1.4a5 5 0 010 1.4l1.5 1.4-1.5 2.6-2-.5a5 5 0 01-1.4.8l-.5 2h-3l-.5-2a5 5 0 01-1.4-.8l-2 .5L1 10.2l1.5-1.4a5 5 0 010-1.4L1 5.9l1.5-2.6 2 .5A5 5 0 016 3l.5-2zM8 6a2 2 0 100 4 2 2 0 000-4z"/></svg>
+        Settings
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="env-indicator">
+        <div class="env-dot" id="env-dot"></div>
+        <div class="env-text"><strong id="env-status">Connected</strong><br>api:5050</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <div class="content">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Overview</div>
+      <div class="topbar-right">
+        <div class="topbar-clock" id="clock">00:00:00 UTC</div>
+        <div class="status-pill healthy" id="system-pill">
+          <div class="pill-dot"></div>
+          <span id="system-pill-text">All Systems Operational</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE AREA -->
+    <div class="page-area">
+
+      <!-- ── OVERVIEW ── -->
+      <div class="panel active" id="panel-overview">
+
+        <!-- Metrics -->
+        <div>
+          <div class="section-row" style="margin-bottom:10px">
+            <span class="section-title">Real-Time Metrics</span>
+            <span style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)" id="last-updated">Updating...</span>
+          </div>
+          <div class="metric-strip">
+            <div class="metric-card" style="--accent-color:var(--blue)">
+              <div class="metric-label">System State</div>
+              <div class="metric-value" id="m-state" style="font-size:15px;color:var(--green)">OPERATIONAL</div>
+              <div class="metric-sub" id="m-state-sub">Primary route active</div>
+            </div>
+            <div class="metric-card" style="--accent-color:var(--green)">
+              <div class="metric-label">Availability</div>
+              <div class="metric-value" id="m-avail" style="color:var(--green)">99.99%</div>
+              <div class="metric-sub">30-day rolling</div>
+            </div>
+            <div class="metric-card" style="--accent-color:var(--amber)">
+              <div class="metric-label">Last RTO</div>
+              <div class="metric-value" id="m-rto">—</div>
+              <div class="metric-sub">Detection latency</div>
+            </div>
+            <div class="metric-card" style="--accent-color:var(--purple)">
+              <div class="metric-label">MTTR</div>
+              <div class="metric-value" id="m-mttr">42.3s</div>
+              <div class="metric-sub">Mean time to recover</div>
+            </div>
+            <div class="metric-card" style="--accent-color:var(--blue)">
+              <div class="metric-label">Health Checks</div>
+              <div class="metric-value" id="m-checks">0</div>
+              <div class="metric-sub" id="m-checks-sub">Since controller start</div>
+            </div>
+            <div class="metric-card" style="--accent-color:var(--green)">
+              <div class="metric-label">Failover Count</div>
+              <div class="metric-value" id="m-fo">0</div>
+              <div class="metric-sub">Automated switches</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Provider Grid -->
+        <div>
+          <div class="section-row" style="margin-bottom:10px">
+            <span class="section-title">Infrastructure Health</span>
+          </div>
+          <div class="provider-grid">
+
+            <!-- AZURE -->
+            <div class="provider-card ok" id="azure-card">
+              <div class="pc-header">
+                <div class="pc-provider">
+                  <div class="pc-logo azure">AZ</div>
+                  <div>
+                    <div class="pc-name">Microsoft Azure</div>
+                    <div class="pc-region">swedencentral · Standard_B2ats_v2</div>
+                  </div>
+                </div>
+                <div class="pc-role primary" id="azure-role">PRIMARY</div>
+              </div>
+              <div class="pc-body">
+                <div class="pc-health">
+                  <div class="health-orb ok" id="azure-orb">✓</div>
+                  <div class="health-info">
+                    <div class="health-status ok" id="azure-hs">HEALTHY</div>
+                    <div class="health-endpoint" id="azure-ep">GET /health → 200 OK</div>
+                  </div>
+                </div>
+                <div class="pc-specs">
+                  <div class="spec-item"><div class="spec-key">Public IP</div><div class="spec-val">4.223.165.133</div></div>
+                  <div class="spec-item"><div class="spec-key">OS</div><div class="spec-val">Ubuntu 24.04</div></div>
+                  <div class="spec-item"><div class="spec-key">App Stack</div><div class="spec-val">Flask · Nginx</div></div>
+                  <div class="spec-item"><div class="spec-key">Failures</div><div class="spec-val" id="azure-fc">0 / 3</div></div>
+                </div>
+                <div class="failure-track">
+                  <div class="ft-header">
+                    <span>Consecutive failures</span>
+                    <span id="azure-fc-pct">0%</span>
+                  </div>
+                  <div class="ft-bar"><div class="ft-fill" id="azure-fb"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DNS FLOW -->
+            <div class="dns-flow-card">
+              <div class="dns-flow-title">Traffic Routing</div>
+              <div class="flow-node">CLIENT</div>
+              <div class="flow-arrow">↓</div>
+              <div class="flow-node live">
+                CLOUDFLARE DNS<br>
+                <span style="font-size:9px;opacity:.7">douglasfailover.xyz · TTL 60s</span>
+              </div>
+              <div class="flow-arrow">↓</div>
+              <div class="flow-node live" id="dns-target">
+                AZURE PRIMARY<br>
+                <span style="font-size:9px;opacity:.7">4.223.165.133</span>
+              </div>
+              <div class="dns-ttl">TTL: 60s · DNS only</div>
+              <div class="dns-routing">Active endpoint: <strong id="dns-active">Azure Sweden Central</strong></div>
+            </div>
+
+            <!-- AWS -->
+            <div class="provider-card ok" id="aws-card">
+              <div class="pc-header">
+                <div class="pc-provider">
+                  <div class="pc-logo aws">AWS</div>
+                  <div>
+                    <div class="pc-name">Amazon Web Services</div>
+                    <div class="pc-region">eu-west-1 · t3.micro</div>
+                  </div>
+                </div>
+                <div class="pc-role secondary" id="aws-role">STANDBY</div>
+              </div>
+              <div class="pc-body">
+                <div class="pc-health">
+                  <div class="health-orb ok" id="aws-orb">✓</div>
+                  <div class="health-info">
+                    <div class="health-status ok" id="aws-hs">HEALTHY</div>
+                    <div class="health-endpoint" id="aws-ep">GET /health → 200 OK</div>
+                  </div>
+                </div>
+                <div class="pc-specs">
+                  <div class="spec-item"><div class="spec-key">Elastic IP</div><div class="spec-val">46.137.49.212</div></div>
+                  <div class="spec-item"><div class="spec-key">OS</div><div class="spec-val">Ubuntu 24.04</div></div>
+                  <div class="spec-item"><div class="spec-key">App Stack</div><div class="spec-val">Flask · Nginx</div></div>
+                  <div class="spec-item"><div class="spec-key">Mode</div><div class="spec-val" id="aws-mode">Passive standby</div></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- State Machine + Log -->
+        <div class="two-col">
+
+          <div class="cs">
+            <div class="cs-header">
+              <div class="cs-title">
+                <div class="cs-dot" style="background:var(--blue)"></div>
+                Controller State Machine
+              </div>
+              <div id="auto-tag" style="font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 9px;border-radius:3px;font-family:var(--font-mono);background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd)">AUTO ON</div>
+            </div>
+            <div class="sm-nodes">
+              <div class="sm-node active" id="sn-1"><div class="sm-indicator"></div><div class="sm-label">PRIMARY<br>HEALTHY</div></div>
+              <div class="sm-arrow">→</div>
+              <div class="sm-node" id="sn-2"><div class="sm-indicator"></div><div class="sm-label">FAILOVER<br>ACTIVE</div></div>
+              <div class="sm-arrow">→</div>
+              <div class="sm-node" id="sn-3"><div class="sm-indicator"></div><div class="sm-label">RECOVERING</div></div>
+            </div>
+
+            <div style="padding:0 16px 12px;border-top:1px solid var(--border-subtle);margin-top:0;padding-top:12px">
+              <div style="font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Health Check Policy</div>
+              <div class="config-row">
+                <div class="cfg-pill" onclick="setConfig('A')">A<span class="cfg-detail">5s · 3s · ×2</span></div>
+                <div class="cfg-pill active" onclick="setConfig('B')">B<span class="cfg-detail">15s · 5s · ×3</span></div>
+                <div class="cfg-pill" onclick="setConfig('C')">C<span class="cfg-detail">30s · 10s · ×5</span></div>
+              </div>
+              <div style="font-size:10px;color:var(--text-tertiary);margin-top:8px;font-family:var(--font-mono)" id="cfg-active-detail">Config B — 15s interval · 5s timeout · 3 failures to trigger</div>
+            </div>
+
+            <div class="controls-section">
+              <div class="auto-toggle-row">
+                <span class="auto-toggle-label">Automated Failover</span>
+                <div class="toggle on" id="auto-toggle" onclick="toggleAuto()"></div>
+              </div>
+              <div class="action-btns">
+                <button class="action-btn primary" onclick="triggerFO()" id="btn-fo">⚡ Trigger Failover</button>
+                <button class="action-btn secondary" onclick="triggerReset()">↺ Restore Primary</button>
+                <button class="action-btn tertiary" onclick="showPanel('results', document.querySelectorAll('.nav-item')[4])">Analytics →</button>
+              </div>
+            </div>
+
+            <div class="sla-row">
+              <div class="sla-item">
+                <div class="sla-label">Target RTO</div>
+                <div class="sla-value" style="color:var(--blue)" id="target-rto">45s</div>
+                <div class="sla-sub">Config B theoretical</div>
+              </div>
+              <div class="sla-item">
+                <div class="sla-label">Controller Uptime</div>
+                <div class="sla-value" id="ctrl-uptime">—</div>
+                <div class="sla-sub">Since last start</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cs">
+            <div class="cs-header">
+              <div class="cs-title">
+                <div class="cs-dot" style="background:var(--green)"></div>
+                Event Stream
+              </div>
+              <span class="cs-meta" id="log-count-meta">0 events</span>
+            </div>
+            <div class="event-log" id="event-log">
+              <div class="empty-state">Connecting to controller stream...</div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ── INFRASTRUCTURE ── -->
+      <div class="panel" id="panel-topology">
+        <div class="two-col">
+          <div class="cs">
+            <div class="cs-header">
+              <div class="cs-title"><div class="cs-dot" style="background:#0078D4"></div>Azure — Primary Node</div>
+              <span class="cs-meta">swedencentral</span>
+            </div>
+            <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="spec-item"><div class="spec-key">Instance SKU</div><div class="spec-val">Standard_B2ats_v2</div></div>
+              <div class="spec-item"><div class="spec-key">vCPU / RAM</div><div class="spec-val">2 vCPU · 1 GB</div></div>
+              <div class="spec-item"><div class="spec-key">Region</div><div class="spec-val">Sweden Central</div></div>
+              <div class="spec-item"><div class="spec-key">OS</div><div class="spec-val">Ubuntu 24.04 LTS</div></div>
+              <div class="spec-item"><div class="spec-key">Public IP</div><div class="spec-val">4.223.165.133</div></div>
+              <div class="spec-item"><div class="spec-key">IP Type</div><div class="spec-val">Static (Standard)</div></div>
+              <div class="spec-item"><div class="spec-key">Web Server</div><div class="spec-val">Nginx (reverse proxy)</div></div>
+              <div class="spec-item"><div class="spec-key">App Runtime</div><div class="spec-val">Gunicorn · Flask</div></div>
+              <div class="spec-item"><div class="spec-key">Container</div><div class="spec-val">Docker Compose</div></div>
+              <div class="spec-item"><div class="spec-key">Health Endpoint</div><div class="spec-val">GET /health → 200</div></div>
+              <div class="spec-item"><div class="spec-key">Port</div><div class="spec-val">80 (HTTP)</div></div>
+              <div class="spec-item"><div class="spec-key">Arch</div><div class="spec-val">x64 · AMD</div></div>
+            </div>
+          </div>
+          <div class="cs">
+            <div class="cs-header">
+              <div class="cs-title"><div class="cs-dot" style="background:#FF9900"></div>AWS — Secondary Node</div>
+              <span class="cs-meta">eu-west-1</span>
+            </div>
+            <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="spec-item"><div class="spec-key">Instance Type</div><div class="spec-val">t3.micro</div></div>
+              <div class="spec-item"><div class="spec-key">vCPU / RAM</div><div class="spec-val">2 vCPU · 1 GB</div></div>
+              <div class="spec-item"><div class="spec-key">Region</div><div class="spec-val">eu-west-1 (Ireland)</div></div>
+              <div class="spec-item"><div class="spec-key">OS</div><div class="spec-val">Ubuntu 24.04 LTS</div></div>
+              <div class="spec-item"><div class="spec-key">Elastic IP</div><div class="spec-val">46.137.49.212</div></div>
+              <div class="spec-item"><div class="spec-key">IP Type</div><div class="spec-val">Elastic IP (static)</div></div>
+              <div class="spec-item"><div class="spec-key">Web Server</div><div class="spec-val">Nginx (reverse proxy)</div></div>
+              <div class="spec-item"><div class="spec-key">App Runtime</div><div class="spec-val">Gunicorn · Flask</div></div>
+              <div class="spec-item"><div class="spec-key">Container</div><div class="spec-val">Docker Compose</div></div>
+              <div class="spec-item"><div class="spec-key">Health Endpoint</div><div class="spec-val">GET /health → 200</div></div>
+              <div class="spec-item"><div class="spec-key">Port</div><div class="spec-val">80 (HTTP)</div></div>
+              <div class="spec-item"><div class="spec-key">AZ</div><div class="spec-val">eu-west-1c</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="cs">
+          <div class="cs-header">
+            <div class="cs-title"><div class="cs-dot" style="background:var(--amber)"></div>DNS & Routing — Cloudflare</div>
+          </div>
+          <div style="padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+            <div class="spec-item"><div class="spec-key">Domain</div><div class="spec-val">douglasfailover.xyz</div></div>
+            <div class="spec-item"><div class="spec-key">DNS Provider</div><div class="spec-val">Cloudflare (free)</div></div>
+            <div class="spec-item"><div class="spec-key">Record Type</div><div class="spec-val">A (unproxied)</div></div>
+            <div class="spec-item"><div class="spec-key">TTL</div><div class="spec-val">60 seconds</div></div>
+            <div class="spec-item"><div class="spec-key">Switchover</div><div class="spec-val">Cloudflare API</div></div>
+            <div class="spec-item"><div class="spec-key">API Latency</div><div class="spec-val">~1–2s</div></div>
+            <div class="spec-item"><div class="spec-key">Propagation</div><div class="spec-val">60–120s (TTL)</div></div>
+            <div class="spec-item"><div class="spec-key">Current Target</div><div class="spec-val" id="dns-current-infra">4.223.165.133</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ALERTS ── -->
+      <div class="panel" id="panel-alerts">
+        <div class="cs">
+          <div class="cs-header">
+            <div class="cs-title"><div class="cs-dot" style="background:var(--red)"></div>Active Alerts</div>
+            <span class="cs-meta" id="alert-meta">0 active</span>
+          </div>
+          <div id="alert-list"><div class="empty-state">No active alerts. All systems healthy.</div></div>
+        </div>
+        <div class="cs">
+          <div class="cs-header">
+            <div class="cs-title"><div class="cs-dot" style="background:var(--text-tertiary)"></div>Alert History</div>
+          </div>
+          <div id="alert-history"><div class="empty-state">No recent alerts.</div></div>
+        </div>
+      </div>
+
+      <!-- ── FAILOVER CONTROL ── -->
+      <div class="panel" id="panel-failover">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+          <div class="metric-card" style="--accent-color:var(--red)">
+            <div class="metric-label">Total Failovers</div>
+            <div class="metric-value" id="fo-total">0</div>
+            <div class="metric-sub">Automated + manual</div>
+          </div>
+          <div class="metric-card" style="--accent-color:var(--amber)">
+            <div class="metric-label">Last Detection</div>
+            <div class="metric-value" id="fo-detect">—</div>
+            <div class="metric-sub">Detection latency (s)</div>
+          </div>
+          <div class="metric-card" style="--accent-color:var(--blue)">
+            <div class="metric-label">Current State</div>
+            <div class="metric-value" id="fo-state" style="font-size:15px;color:var(--green)">HEALTHY</div>
+            <div class="metric-sub">Controller state</div>
+          </div>
+          <div class="metric-card" style="--accent-color:var(--green)">
+            <div class="metric-label">Active Route</div>
+            <div class="metric-value" id="fo-route" style="font-size:15px;color:var(--blue)">AZURE</div>
+            <div class="metric-sub">DNS points to</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="cs">
+            <div class="cs-header"><div class="cs-title">Failover Event Log</div></div>
+            <div id="fo-events"><div class="empty-state">No failover events recorded yet.</div></div>
+          </div>
+          <div class="cs">
+            <div class="cs-header"><div class="cs-title">Manual Controls</div></div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+              <button class="action-btn primary" onclick="triggerFO()" style="width:100%">⚡ Force Immediate Failover to AWS</button>
+              <button class="action-btn secondary" onclick="triggerReset()" style="width:100%">↺ Restore Azure Primary</button>
+              <div style="height:1px;background:var(--border-subtle)"></div>
+              <div class="auto-toggle-row">
+                <div>
+                  <div class="auto-toggle-label">Automated Failover Engine</div>
+                  <div style="font-size:10px;color:var(--text-tertiary);margin-top:2px" id="auto-desc">Active — controller will auto-switch on threshold breach</div>
+                </div>
+                <div class="toggle on" id="auto-toggle2" onclick="toggleAuto()"></div>
+              </div>
+              <div style="font-size:10px;color:var(--text-tertiary);line-height:1.6;padding:10px;background:var(--bg-raised);border-radius:var(--radius-sm);border:1px solid var(--border-subtle)">
+                When disabled, the controller continues health monitoring and fires alerts but does not execute DNS switching. All failover decisions require manual confirmation.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ANALYTICS ── -->
+      <div class="panel" id="panel-results">
+        <div class="cs">
+          <div class="cs-header">
+            <div class="cs-title"><div class="cs-dot" style="background:var(--purple)"></div>Detection Latency — All 30 Experimental Trials</div>
+            <span class="cs-meta" id="chart-meta">Loading...</span>
+          </div>
+          <div class="chart-wrap"><canvas id="resultsChart"></canvas></div>
+        </div>
+        <div class="two-col">
+          <div class="cs">
+            <div class="cs-header"><div class="cs-title">Trial Results</div></div>
+            <div style="overflow-x:auto">
+              <table class="data-table" id="data-table">
+                <thead><tr><th>Trial ID</th><th>Policy</th><th>Failure Mode</th><th>Detection (s)</th><th>Theoretical Min</th></tr></thead>
+                <tbody id="data-tbody"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="cs">
+            <div class="cs-header"><div class="cs-title">Policy Benchmark</div></div>
+            <div style="padding:16px">
+              <table class="data-table">
+                <thead><tr><th>Parameter</th><th>Policy A</th><th>Policy B</th><th>Policy C</th></tr></thead>
+                <tbody>
+                  <tr><td>Check Interval</td><td>5s</td><td>15s</td><td>30s</td></tr>
+                  <tr><td>Timeout</td><td>3s</td><td>5s</td><td>10s</td></tr>
+                  <tr><td>Failure Threshold</td><td>×2</td><td>×3</td><td>×5</td></tr>
+                  <tr><td>Theoretical RTO</td><td>10s</td><td>45s</td><td>150s</td></tr>
+                  <tr><td>VM Mean (measured)</td><td style="color:var(--green);font-weight:600">10.447s</td><td style="color:var(--blue);font-weight:600">42.328s</td><td style="color:var(--amber);font-weight:600">163.681s</td></tr>
+                  <tr><td>App Mean (measured)</td><td style="color:var(--green);font-weight:600">10.593s</td><td style="color:var(--blue);font-weight:600">38.725s</td><td style="color:var(--amber);font-weight:600">131.914s</td></tr>
+                  <tr><td>vs Manual (240s)</td><td style="color:var(--green);font-weight:700">−95.6%</td><td style="color:var(--blue);font-weight:700">−82.4%</td><td style="color:var(--amber);font-weight:700">−31.8%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS ── -->
+      <div class="panel" id="panel-settings">
+        <div class="cs">
+          <div class="cs-header"><div class="cs-title">Platform Configuration</div></div>
+          <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="spec-item"><div class="spec-key">API Endpoint</div><div class="spec-val">http://localhost:5050/api</div></div>
+            <div class="spec-item"><div class="spec-key">Poll Interval</div><div class="spec-val">3s (status) · 2s (logs)</div></div>
+            <div class="spec-item"><div class="spec-key">DNS Provider</div><div class="spec-val">Cloudflare</div></div>
+            <div class="spec-item"><div class="spec-key">Minimum TTL</div><div class="spec-val">60s (free tier)</div></div>
+            <div class="spec-item"><div class="spec-key">Primary Region</div><div class="spec-val">Azure Sweden Central</div></div>
+            <div class="spec-item"><div class="spec-key">Secondary Region</div><div class="spec-val">AWS eu-west-1</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end page-area -->
+  </div><!-- end content -->
+</div><!-- end shell -->
+
+<script>
+const API = 'http://localhost:5050/api';
+let autoEnabled = true;
+let lastLogTs = 0;
+let chartInst = null;
+let resultsLoaded = false;
+let prevFail = false;
+let foEvents = [];
+const THEORY = { A:10, B:45, C:150 };
+
+/* ── CLOCK ── */
+setInterval(() => {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toUTCString().slice(17,25) + ' UTC';
+}, 1000);
+
+/* ── NAV ── */
+function showPanel(id, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+  const titles = {
+    overview:'Overview', topology:'Infrastructure', alerts:'Alerts',
+    failover:'Failover Control', results:'Analytics', settings:'Settings'
+  };
+  document.getElementById('page-title').textContent = titles[id] || id;
+  if (id === 'results' && !resultsLoaded) loadResults();
+}
+
+/* ── POLL ── */
+async function poll() {
+  try {
+    const r = await fetch(API + '/status');
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    render(d);
+    setEnv(true);
+  } catch(e) {
+    setEnv(false);
+  }
+}
+
+async function pollLogs() {
+  try {
+    const r = await fetch(API + '/logs?since=' + lastLogTs);
+    const d = await r.json();
+    if (d.logs && d.logs.length) {
+      d.logs.forEach(e => { if (e.ts > lastLogTs) lastLogTs = e.ts; appendLog(e); });
+    }
+  } catch(e) {}
+}
+
+function setEnv(ok) {
+  const dot = document.getElementById('env-dot');
+  const txt = document.getElementById('env-status');
+  dot.className = ok ? 'env-dot' : 'env-dot red';
+  txt.textContent = ok ? 'Connected' : 'Offline';
+}
+
+/* ── RENDER ── */
+const STATE_MAP = {
+  PRIMARY_HEALTHY: { label:'OPERATIONAL',   sub:'Primary route active',         color:'var(--green)',  pill:'healthy', pillTxt:'All Systems Operational' },
+  FAILOVER_ACTIVE: { label:'FAILOVER',       sub:'Traffic on secondary node',    color:'var(--red)',    pill:'critical', pillTxt:'Failover Active' },
+  RECOVERING:      { label:'RECOVERING',     sub:'Awaiting primary restoration', color:'var(--amber)',  pill:'warning',  pillTxt:'Recovery Mode' },
+};
+
+function render(d) {
+  const sm = STATE_MAP[d.system_state] || STATE_MAP.PRIMARY_HEALTHY;
+  const toAWS = d.system_state === 'FAILOVER_ACTIVE';
+
+  /* stat strip */
+  se('m-state', sm.label);
+  sst('m-state', 'color', sm.color);
+  se('m-state-sub', sm.sub);
+  se('m-checks', fmt(d.total_checks));
+  se('m-fo', d.failover_count);
+  se('m-rto', d.detection_latency ? d.detection_latency + 's' : '—');
+  se('m-avail', calcAvail(d));
+  se('last-updated', 'Updated ' + new Date().toTimeString().slice(0,8));
+
+  /* system pill */
+  const pill = document.getElementById('system-pill');
+  pill.className = 'status-pill ' + sm.pill;
+  se('system-pill-text', sm.pillTxt);
+
+  /* providers */
+  renderProvider('azure', d.azure_healthy, d.consecutive_failures, d.config.failure_threshold);
+  renderProvider('aws', d.aws_healthy, 0, 0);
+
+  /* dns */
+  const dnt = document.getElementById('dns-target');
+  const dna = document.getElementById('dns-active');
+  const dci = document.getElementById('dns-current-infra');
+  if (toAWS) {
+    dnt.className = 'flow-node live-aws';
+    dnt.innerHTML = 'AWS SECONDARY<br><span style="font-size:9px;opacity:.7">' + d.aws_ip + '</span>';
+    dna.style.color = 'var(--amber)';
+    dna.textContent = 'AWS eu-west-1 (Ireland)';
+    if(dci) dci.textContent = d.aws_ip;
+  } else {
+    dnt.className = 'flow-node live';
+    dnt.innerHTML = 'AZURE PRIMARY<br><span style="font-size:9px;opacity:.7">' + d.azure_ip + '</span>';
+    dna.style.color = 'var(--blue)';
+    dna.textContent = 'Azure Sweden Central';
+    if(dci) dci.textContent = d.azure_ip;
+  }
+
+  /* state machine */
+  const map = { PRIMARY_HEALTHY:'sn-1', FAILOVER_ACTIVE:'sn-2', RECOVERING:'sn-3' };
+  const cls = { PRIMARY_HEALTHY:'active', FAILOVER_ACTIVE:'active-crit', RECOVERING:'active-warn' };
+  ['sn-1','sn-2','sn-3'].forEach(id => {
+    document.getElementById(id).className = 'sm-node';
+  });
+  const target = document.getElementById(map[d.system_state]);
+  if (target) target.classList.add(cls[d.system_state]);
+
+  /* config */
+  document.querySelectorAll('.cfg-pill').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim().startsWith(d.active_config));
+  });
+  se('cfg-active-detail', 'Config ' + d.active_config + ' — ' + d.config.check_interval + 's interval · ' + d.config.timeout + 's timeout · ' + d.config.failure_threshold + ' failures to trigger');
+  se('target-rto', (THEORY[d.active_config] || '—') + 's');
+  se('ctrl-uptime', fmtUp(d.uptime_start));
+
+  /* failover panel */
+  se('fo-total', d.failover_count);
+  se('fo-detect', d.detection_latency ? d.detection_latency + 's' : '—');
+  se('fo-state', sm.label);
+  sst('fo-state', 'color', sm.color);
+  se('fo-route', toAWS ? 'AWS' : 'AZURE');
+  sst('fo-route', 'color', toAWS ? 'var(--amber)' : 'var(--blue)');
+
+  /* auto */
+  autoEnabled = d.auto_failover;
+  updateAutoUI();
+
+  /* alerts */
+  renderAlerts(d);
+
+  /* failover flash */
+  if (toAWS && !prevFail) {
+    document.getElementById('fo-flash').classList.add('show');
+    setTimeout(() => document.getElementById('fo-flash').classList.remove('show'), 2400);
+    if (d.t_dns_updated) {
+      foEvents.unshift({ time: d.t_dns_updated, latency: d.detection_latency, from: d.azure_ip, to: d.aws_ip });
+      renderFOEvents();
+    }
+  }
+  prevFail = toAWS;
+}
+
+function renderProvider(p, healthy) {
+  const card = document.getElementById(p + '-card');
+  const orb  = document.getElementById(p + '-orb');
+  const hs   = document.getElementById(p + '-hs');
+  const ep   = document.getElementById(p + '-ep');
+  if (healthy) {
+    card.className = 'provider-card ok';
+    orb.className = 'health-orb ok';
+    orb.textContent = '✓';
+    hs.className = 'health-status ok';
+    hs.textContent = 'HEALTHY';
+    ep.textContent = 'GET /health → 200 OK';
+  } else {
+    card.className = 'provider-card fail';
+    orb.className = 'health-orb fail';
+    orb.textContent = '✕';
+    hs.className = 'health-status fail';
+    hs.textContent = 'UNREACHABLE';
+    ep.textContent = 'Connection timeout / refused';
+  }
+}
+
+function renderAlerts(d) {
+  const items = [];
+  if (!d.azure_healthy) items.push({ sev:'crit', title:'Azure Primary Unreachable', detail: d.consecutive_failures + '/' + d.config.failure_threshold + ' consecutive health check failures', badge:'CRITICAL' });
+  if (!d.aws_healthy)   items.push({ sev:'warn', title:'AWS Secondary Unreachable', detail: 'Failover target is unhealthy — recovery may fail', badge:'WARNING' });
+  if (d.system_state === 'FAILOVER_ACTIVE') items.push({ sev:'crit', title:'Failover Active — Traffic on Secondary', detail: 'Switched at ' + (d.t_dns_updated||'—') + ' · Detection latency: ' + d.detection_latency + 's', badge:'CRITICAL' });
+  if (d.system_state === 'RECOVERING')      items.push({ sev:'warn', title:'Primary Recovered — Manual Switchback Required', detail: 'Azure is responding. Use Restore Primary to resume normal routing.', badge:'WARNING' });
+  if (!d.auto_failover) items.push({ sev:'info', title:'Automated Failover Disabled', detail: 'Controller is monitoring but will not switch DNS automatically.', badge:'INFO' });
+
+  const nb = document.getElementById('nav-badge');
+  nb.style.display = items.length ? 'inline' : 'none';
+  nb.textContent = items.length;
+  se('alert-meta', items.length + ' active');
+
+  const list = document.getElementById('alert-list');
+  list.innerHTML = items.length === 0
+    ? '<div class="empty-state">No active alerts. All systems healthy.</div>'
+    : items.map(a => `
+        <div class="alert-row">
+          <div class="alert-severity sev-${a.sev}"></div>
+          <div class="alert-body">
+            <div class="alert-title">${a.title}</div>
+            <div class="alert-detail">${a.detail}</div>
+          </div>
+          <span class="alert-sev-badge asb-${a.sev === 'crit' ? 'crit' : a.sev === 'warn' ? 'warn' : 'info'}">${a.badge}</span>
+          <div class="alert-time">now</div>
+        </div>`).join('');
+}
+
+function renderFOEvents() {
+  const el = document.getElementById('fo-events');
+  if (!foEvents.length) { el.innerHTML = '<div class="empty-state">No failover events recorded.</div>'; return; }
+  el.innerHTML = foEvents.map(e => `
+    <div class="alert-row">
+      <div class="alert-severity sev-crit"></div>
+      <div class="alert-body">
+        <div class="alert-title">Failover Executed — DNS switched to AWS</div>
+        <div class="alert-detail">Detection: ${e.latency}s · ${e.from} → ${e.to}</div>
+      </div>
+      <div class="alert-time">${e.time.slice(0,19)}</div>
+    </div>`).join('');
+}
+
+/* ── LOG ── */
+const logEl = document.getElementById('event-log');
+let logInit = false;
+
+function appendLog(e) {
+  if (!logInit) { logEl.innerHTML = ''; logInit = true; }
+  const div = document.createElement('div');
+  div.className = 'log-row';
+  const hi = ['CRITICAL','WARNING'].includes(e.level);
+  div.innerHTML = `<span class="log-ts">${e.time}</span><span class="log-lvl ${e.level}">[${e.level.slice(0,4)}]</span><span class="log-msg ${hi?'hi':''}">${e.message}</span>`;
+  logEl.insertBefore(div, logEl.firstChild);
+  while (logEl.children.length > 120) logEl.removeChild(logEl.lastChild);
+  se('log-count-meta', logEl.children.length + ' events');
+}
+
+/* ── RESULTS ── */
+async function loadResults() {
+  try {
+    const r = await fetch(API + '/results');
+    const d = await r.json();
+    if (!d.results || !d.results.length) { se('chart-meta', 'No results'); return; }
+    resultsLoaded = true;
+    se('chart-meta', d.count + ' trials');
+    buildChart(d.results);
+    buildTable(d.results);
+  } catch(e) { se('chart-meta', 'API unavailable'); }
+}
+
+function buildChart(results) {
+  const vm = results.filter(r => r.failure_type === 'vm_failure');
+  const ap = results.filter(r => r.failure_type === 'app_failure');
+  const cc = { A:'rgba(16,185,129,0.75)', B:'rgba(59,130,246,0.75)', C:'rgba(245,158,11,0.75)' };
+  const ctx = document.getElementById('resultsChart').getContext('2d');
+  if (chartInst) chartInst.destroy();
+  chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: [...vm.map(r => r.trial_id), ...ap.map(r => r.trial_id)],
+      datasets: [
+        { label:'VM Failure', data:[...vm.map(r=>r.detection_latency),...Array(ap.length).fill(null)], backgroundColor:vm.map(r=>cc[r.config]), borderRadius:4 },
+        { label:'App Failure', data:[...Array(vm.length).fill(null),...ap.map(r=>r.detection_latency)], backgroundColor:ap.map(r=>cc[r.config]+'99'), borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ labels:{ color:'#8A95A8', font:{ family:'JetBrains Mono', size:11 }, boxWidth:12 } },
+        tooltip:{ backgroundColor:'#111927', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, titleColor:'#E8EDF5', bodyColor:'#8A95A8', titleFont:{family:'JetBrains Mono',size:11}, bodyFont:{family:'JetBrains Mono',size:11}, callbacks:{ label: c => ` ${c.parsed.y?.toFixed(3)??'—'}s detection latency` } }
+      },
+      scales:{
+        x:{ ticks:{ color:'#4E5A6B', font:{family:'JetBrains Mono',size:8}, maxRotation:45 }, grid:{ color:'rgba(255,255,255,0.03)' } },
+        y:{ ticks:{ color:'#8A95A8', font:{family:'JetBrains Mono',size:10}, callback:v=>v+'s' }, grid:{ color:'rgba(255,255,255,0.04)' }, title:{ display:true, text:'Detection Latency (s)', color:'#4E5A6B', font:{family:'JetBrains Mono',size:10} } }
+      }
+    }
+  });
+}
+
+function buildTable(results) {
+  document.getElementById('data-tbody').innerHTML = results.map(r => `
+    <tr>
+      <td>${r.trial_id}</td>
+      <td><span class="tag tag-${r.config.toLowerCase()}">${r.config}</span></td>
+      <td>${r.failure_type === 'vm_failure' ? 'VM Failure' : 'App Failure'}</td>
+      <td style="font-weight:600;color:var(--text-primary)">${r.detection_latency.toFixed(3)}s</td>
+      <td style="color:var(--text-tertiary)">${THEORY[r.config]||'—'}s</td>
+    </tr>`).join('');
+}
+
+/* ── CONTROLS ── */
+async function triggerFO() {
+  if (!confirm('Force immediate failover to AWS? DNS will be updated in real time.')) return;
+  try {
+    const r = await fetch(API + '/failover', { method:'POST' });
+    const d = await r.json();
+    if (!d.success) alert('Failover failed: ' + d.error);
+  } catch(e) { alert('Cannot reach api_server.py on port 5050.'); }
+}
+
+async function triggerReset() {
+  if (!confirm('Restore Azure as primary? DNS will switch back.')) return;
+  try {
+    const r = await fetch(API + '/reset', { method:'POST' });
+    const d = await r.json();
+    if (!d.success) alert('Reset failed: ' + d.error);
+  } catch(e) { alert('Cannot reach api_server.py on port 5050.'); }
+}
+
+async function setConfig(c) {
+  try {
+    await fetch(API + '/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({config:c}) });
+  } catch(e) {}
+}
+
+async function toggleAuto() {
+  autoEnabled = !autoEnabled;
+  try {
+    await fetch(API + '/auto_failover', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({enabled:autoEnabled}) });
+  } catch(e) {}
+  updateAutoUI();
+}
+
+function updateAutoUI() {
+  ['auto-toggle','auto-toggle2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'toggle ' + (autoEnabled ? 'on' : '');
+  });
+  const tag = document.getElementById('auto-tag');
+  if (autoEnabled) {
+    tag.style.background = 'var(--green-dim)';
+    tag.style.color = 'var(--green)';
+    tag.style.borderColor = 'var(--green-bd)';
+    tag.textContent = 'AUTO ON';
+  } else {
+    tag.style.background = 'var(--amber-dim)';
+    tag.style.color = 'var(--amber)';
+    tag.style.borderColor = 'var(--amber-bd)';
+    tag.textContent = 'AUTO OFF';
+  }
+  const desc = document.getElementById('auto-desc');
+  if (desc) desc.textContent = autoEnabled
+    ? 'Active — controller will auto-switch on threshold breach'
+    : 'Disabled — manual confirmation required for all failover events';
+}
+
+/* ── UTILS ── */
+function se(id, v)    { const el = document.getElementById(id); if (el) el.textContent = v; }
+function sst(id, p, v){ const el = document.getElementById(id); if (el) el.style[p] = v; }
+function fmt(n)        { return n >= 1000 ? (n/1000).toFixed(1)+'k' : n; }
+
+function fmtUp(s) {
+  if (!s) return '—';
+  const sec = Math.floor((Date.now() - new Date(s)) / 1000);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const sc = sec % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sc).padStart(2,'0');
+}
+
+function calcAvail(d) {
+  if (d.failover_count === 0) return '99.99%';
+  const est = 100 - (d.detection_latency || 42) / (30 * 24 * 3600) * 100;
+  return est.toFixed(3) + '%';
+}
+
+/* ── UPTIME SEGMENTS ── */
+function buildUptimeBar() {
+  const bar = document.getElementById('uptime-bar');
+  if (!bar) return;
+  bar.innerHTML = Array(30).fill(0).map((_, i) => `<div class="ub-seg" title="Day ${30-i}"></div>`).join('');
+}
+
+/* ── START ── */
+buildUptimeBar();
+poll();
+pollLogs();
+setInterval(poll, 3000);
+setInterval(pollLogs, 2000);
+</script>
+</body>
+</html>

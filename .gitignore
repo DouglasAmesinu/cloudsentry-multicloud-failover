@@ -1,0 +1,13 @@
+﻿controller/config.py
+*.pem
+*.key
+MY_VALUES.txt
+__pycache__/
+*.pyc
+.env
+venv/
+controller/logs/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/

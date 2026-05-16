@@ -1,0 +1,19 @@
+﻿# CloudSentry Configuration Template
+# Copy this file to config.py and fill in your values
+# NEVER commit config.py to version control
+
+AZURE_IP     = "YOUR_AZURE_VM_PUBLIC_IP"
+AWS_IP       = "YOUR_AWS_ELASTIC_IP"
+CF_API_TOKEN = "YOUR_CLOUDFLARE_API_TOKEN"
+CF_ZONE_ID   = "YOUR_CLOUDFLARE_ZONE_ID"
+CF_RECORD_ID = "YOUR_CLOUDFLARE_DNS_RECORD_ID"
+DOMAIN       = "yourdomain.xyz"
+
+AZURE_HEALTH_URL = f"http://{AZURE_IP}/health"
+AWS_HEALTH_URL   = f"http://{AWS_IP}/health"
+
+CONFIGS = {
+    "A": {"check_interval": 5,  "timeout": 3,  "failure_threshold": 2, "name": "Config A (Aggressive)"},
+    "B": {"check_interval": 15, "timeout": 5,  "failure_threshold": 3, "name": "Config B (Balanced)"},
+    "C": {"check_interval": 30, "timeout": 10, "failure_threshold": 5, "name": "Config C (Conservative)"},
+}
