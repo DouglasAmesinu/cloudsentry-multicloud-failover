@@ -1,13 +1,32 @@
-﻿controller/config.py
+# ── CREDENTIALS — NEVER COMMIT THESE ──
+controller/config.py
 *.pem
 *.key
 MY_VALUES.txt
+
+# ── PYTHON ──
 __pycache__/
+*.py[cod]
 *.pyc
 .env
 venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# ── LOGS ──
 controller/logs/
 *.log
+
+# ── OS FILES ──
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ── VS CODE ──
 .vscode/
+*.code-workspace
+
+# ── DOCKER ──
+.docker/
